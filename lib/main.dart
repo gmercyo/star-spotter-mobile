@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:ifalens/utils/colors.dart';
 
 import 'screens/home.dart';
 
@@ -16,6 +17,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
+        primaryColor: Color(0x6A2C70FF),
         // This is the theme of your application.
         //
         // TRY THIS: Try running your application with "flutter run". You'll see
@@ -32,10 +34,11 @@ class MyApp extends StatelessWidget {
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Color(0x6A2C70FF),
-          primary: Color(0x6A2C70FF),
-          secondary: Color(0x322154FF),
-          background: Color(0xFAF4FBFF),
+          seedColor: HexColor('#6A2C70'),
+          primary: HexColor('#6A2C70'),
+          secondary: HexColor('#322154'),
+          tertiary: HexColor('#FAF4FB'),
+          background: HexColor('#FAF4FB'),
         ),
         textTheme: GoogleFonts.latoTextTheme(),
         useMaterial3: true,

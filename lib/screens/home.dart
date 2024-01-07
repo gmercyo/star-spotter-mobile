@@ -3,20 +3,27 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:ifalens/screens/actor_info_modal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 
-Future<http.Response> submitImage(String base64Image) {
-  return http.post(
-    Uri.parse(
-        'https://9xmtbfe4qi.execute-api.eu-west-2.amazonaws.com/staging/recognize'),
-    headers: <String, String>{
-      'Content-Type': 'application/json; charset=UTF-8',
-    },
-    body: jsonEncode(<String, String>{
-      'image': base64Image,
-    }),
+import '../widgets/buttons.dart';
+
+Future<http.Response> submitImage(String path) async {
+  var request = http.MultipartRequest(
+    'POST',
+    Uri.parse('http://192.168.1.103:3000/rekognise'),
   );
+
+  final image = await http.MultipartFile.fromPath('image', path);
+
+  request.files.add(image);
+
+  var streamedResponse = await request.send();
+
+  // Get the response from the stream
+  return await http.Response.fromStream(streamedResponse);
 }
 
 class HomeScreen extends StatefulWidget {
@@ -30,18 +37,6 @@ class _HomeScreenState extends State<HomeScreen> {
   File? _imageFile;
   bool _isUploading = false;
   String? _celebName;
-
-  Future<void> _pickImage() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.camera);
-    setState(() {
-      if (pickedFile != null) {
-        _imageFile = File(pickedFile.path);
-      } else {
-        print('No image selected.');
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,29 +54,73 @@ class _HomeScreenState extends State<HomeScreen> {
             // centered text in a bos of 0.75 width
             Container(
               width: MediaQuery.of(context).size.width * 0.75,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 32.0),
-                child: Text(
-                  'Take a photo of any actor and find out who they are and what they\'ve been in!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                  ),
+              margin: const EdgeInsets.only(bottom: 64.0, top: 64.0),
+              child: const Text(
+                'Take a photo of any actor in a movie scene and find out who they are and what they\'ve been in!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
                 ),
               ),
             ),
 
             // button with elevation 0 and border radius and text "Take a photo"
-            ElevatedButton(
-              onPressed: _pickImage,
-              style: ElevatedButton.styleFrom(
-                elevation: 0,
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('Take a photo'),
+            StyledBlockButton(
+              child: _isUploading
+                  ? Container(
+                      width: 24,
+                      height: 24,
+                      padding: const EdgeInsets.all(2.0),
+                      child: const CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 3,
+                      ),
+                    )
+                  : const Text('Take photo'),
+              onPressed: () async {
+                final pickedFile = await ImagePicker().pickImage(
+                  source: ImageSource.camera,
+                );
+
+                if (pickedFile != null) {
+                  setState(() {
+                    _imageFile = File(pickedFile.path);
+                  });
+
+                  setState(() {
+                    _isUploading = true;
+                  });
+
+                  http.Response response = await submitImage(pickedFile.path);
+
+                  setState(() {
+                    _isUploading = false;
+                  });
+
+                  if (response.statusCode != 200) {
+                    print(response.body);
+                    Fluttertoast.showToast(
+                      msg: "Sorry, an error occured: ${response.statusCode}",
+                      toastLength: Toast.LENGTH_SHORT,
+                      gravity: ToastGravity.BOTTOM,
+                      textColor: Colors.white,
+                      fontSize: 16.0,
+                    );
+                    return;
+                  }
+                  // to json
+                  Map<String, dynamic> responseData = jsonDecode(response.body);
+                  // name is the name key in responseData
+                  String name = responseData['name'];
+
+                  if (context.mounted) {
+                    // TODO: no need for storing the image in state, just pass it to this function which will then send it to the API
+                    // upload the file to the APIto get their name, and upload name to separate endpoint to get bio
+                    showActorInfoModal(context, Image.file(_imageFile!), name);
+                  }
+                }
+              },
+              // color: Theme.of(context).colorScheme.primary,
             ),
 
             // if (_imageFile != null) ...[
@@ -90,10 +129,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.camera),
-        onPressed: _pickImage,
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   child: Icon(Icons.camera),
+      //   onPressed: _pickImage,
+      // ),
     );
   }
 }
