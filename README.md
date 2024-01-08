@@ -1,4 +1,4 @@
-# ifalens
+# StarSpotter
 
 A new Flutter project.
 

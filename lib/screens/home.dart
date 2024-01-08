@@ -1,28 +1,35 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+// import 'dart:io' show File, Platform;
 
+// import 'dart:html' as html;
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+// import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+// import 'package:flutter/widgets.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:ifalens/screens/actor_info_modal.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:star_spotter/screens/actor_info_modal.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 import '../widgets/buttons.dart';
 
-Future<http.Response> submitImage(String path) async {
+String baseUrl = dotenv.env['API_BASE_URL'] ?? '';
+
+Future<http.Response> uploadFile(List<int> fileBytes) async {
   var request = http.MultipartRequest(
     'POST',
-    Uri.parse('http://192.168.1.103:3000/rekognise'),
+    Uri.parse('$baseUrl/rekognise'),
   );
 
-  final image = await http.MultipartFile.fromPath('image', path);
-
-  request.files.add(image);
+  request.files
+      .add(http.MultipartFile.fromBytes('image', fileBytes, filename: 'image'));
 
   var streamedResponse = await request.send();
-
-  // Get the response from the stream
   return await http.Response.fromStream(streamedResponse);
 }
 
@@ -34,9 +41,136 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  File? _imageFile;
   bool _isUploading = false;
-  String? _celebName;
+
+  Future<void> pickImage() async {
+    Uint8List? fileBytes;
+
+    if (!kIsWeb) {
+      showCupertinoModalPopup(
+        context: context,
+        builder: (context) => CupertinoActionSheet(
+          actions: [
+            CupertinoActionSheetAction(
+              child: Text('Photo Gallery'),
+              onPressed: () async {
+                // close the options modal
+                Navigator.of(context).pop();
+                // get image from gallery
+                fileBytes = await getImageBytesFromGallery();
+                submitFile(fileBytes);
+              },
+            ),
+            CupertinoActionSheetAction(
+              child: Text('Camera'),
+              onPressed: () async {
+                // close the options modal
+                Navigator.of(context).pop();
+                // get image from camera
+                fileBytes = await getImageBytesFromCamera();
+                submitFile(fileBytes);
+              },
+            ),
+          ],
+        ),
+      );
+    } else {
+      fileBytes = await getImageWithFilePicker();
+      submitFile(fileBytes);
+    }
+  }
+
+  Future<void> submitFile(Uint8List? fileBytes) async {
+    Image? image;
+    http.Response? response;
+
+    if (fileBytes != null) {
+      setState(() {
+        _isUploading = true;
+      });
+
+      image = Image.memory(fileBytes);
+
+      try {
+        response = await uploadFile(fileBytes!);
+      } catch (e) {
+        debugPrint(e.toString());
+        Fluttertoast.showToast(
+          msg: "Sorry, an error occured.",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+      } finally {
+        setState(() {
+          _isUploading = false;
+        });
+      }
+    }
+
+    if (response != null && image != null) {
+      Map<String, dynamic> responseData = jsonDecode(response.body);
+
+      if (response.statusCode != 200) {
+        Fluttertoast.showToast(
+          msg:
+              "Sorry, an error occured: ${responseData['error'] ?? response.statusCode}",
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.BOTTOM,
+          textColor: Colors.white,
+          backgroundColor: Colors.red,
+          fontSize: 16.0,
+        );
+        return;
+      }
+
+      String name = responseData['name'];
+
+      if (context.mounted) {
+        showActorInfoModal(context, image, name);
+      }
+    }
+  }
+
+  Future<Uint8List?> getImageBytesFromGallery() async {
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
+
+    if (pickedFile != null) {
+      return await pickedFile.readAsBytes();
+    }
+
+    return null;
+  }
+
+  Future<Uint8List?> getImageBytesFromCamera() async {
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+    );
+
+    if (pickedFile != null) {
+      return await pickedFile.readAsBytes();
+    }
+
+    return null;
+  }
+
+  Future<Uint8List?> getImageWithFilePicker() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+    );
+
+    print(result);
+
+    if (result != null) {
+      PlatformFile file = result.files.first;
+      return file.bytes;
+    }
+
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,6 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // button with elevation 0 and border radius and text "Take a photo"
             StyledBlockButton(
+              onPressed: pickImage,
               child: _isUploading
                   ? Container(
                       width: 24,
@@ -77,49 +212,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     )
                   : const Text('Take photo'),
-              onPressed: () async {
-                final pickedFile = await ImagePicker().pickImage(
-                  source: ImageSource.camera,
-                );
-
-                if (pickedFile != null) {
-                  setState(() {
-                    _imageFile = File(pickedFile.path);
-                  });
-
-                  setState(() {
-                    _isUploading = true;
-                  });
-
-                  http.Response response = await submitImage(pickedFile.path);
-
-                  setState(() {
-                    _isUploading = false;
-                  });
-
-                  if (response.statusCode != 200) {
-                    print(response.body);
-                    Fluttertoast.showToast(
-                      msg: "Sorry, an error occured: ${response.statusCode}",
-                      toastLength: Toast.LENGTH_SHORT,
-                      gravity: ToastGravity.BOTTOM,
-                      textColor: Colors.white,
-                      fontSize: 16.0,
-                    );
-                    return;
-                  }
-                  // to json
-                  Map<String, dynamic> responseData = jsonDecode(response.body);
-                  // name is the name key in responseData
-                  String name = responseData['name'];
-
-                  if (context.mounted) {
-                    // TODO: no need for storing the image in state, just pass it to this function which will then send it to the API
-                    // upload the file to the APIto get their name, and upload name to separate endpoint to get bio
-                    showActorInfoModal(context, Image.file(_imageFile!), name);
-                  }
-                }
-              },
               // color: Theme.of(context).colorScheme.primary,
             ),
 

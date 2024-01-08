@@ -1,11 +1,12 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:http/http.dart' as http;
-import 'package:ifalens/utils/actor_info.dart';
-import 'package:ifalens/utils/colors.dart';
+import 'package:star_spotter/utils/actor_info.dart';
+
+String baseUrl = dotenv.env['API_BASE_URL'] ?? '';
 
 void showActorInfoModal(BuildContext context, Image image, String actorName) {
   showModalBottomSheet(
@@ -40,7 +41,8 @@ void showActorInfoModal(BuildContext context, Image image, String actorName) {
 }
 
 Future<ActorInfo?> findActorByName(String actorName) async {
-  final uri = Uri.http('192.168.1.103:3000', '/search', {'name': actorName});
+  final uri = Uri.parse("$baseUrl/search")
+      .replace(queryParameters: {'name': actorName});
 
   http.Response response = await http.get(
     uri,
@@ -59,9 +61,10 @@ Future<ActorInfo?> findActorByName(String actorName) async {
     // If the server did not return a 200 OK response, show an error notification.
     Fluttertoast.showToast(
       msg: "Sorry, an error occured.",
-      toastLength: Toast.LENGTH_SHORT,
+      toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
       textColor: Colors.white,
+      backgroundColor: Colors.red,
       fontSize: 16.0,
     );
 
@@ -70,10 +73,14 @@ Future<ActorInfo?> findActorByName(String actorName) async {
 }
 
 class ActorInfoScreen extends StatefulWidget {
-  final String? actorName;
+  final String actorName;
   final Image image;
 
-  const ActorInfoScreen({super.key, this.actorName, required this.image});
+  const ActorInfoScreen({
+    super.key,
+    required this.actorName,
+    required this.image,
+  });
 
   @override
   State<ActorInfoScreen> createState() => _ActorInfoScreenState();
@@ -213,88 +220,104 @@ class _ActorInfoScreenState extends State<ActorInfoScreen> {
                                 ),
                           ),
                           SizedBox(height: 16),
-                          ..._actorInfo!.filmography!.map(
-                            (movie) => Container(
-                              margin: const EdgeInsets.only(bottom: 16.0),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 80,
-                                    height: 120,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(5.0),
-                                      image: DecorationImage(
-                                        image: movie.posterImage?.url != null
-                                            ? Image.network(
-                                                    movie.posterImage!.url!)
-                                                .image
-                                            : const AssetImage(
-                                                'assets/images/placeholder.png'),
-                                        fit: BoxFit.cover,
+                          ...(_actorInfo?.filmography?.map(
+                                (movie) => Container(
+                                  margin: const EdgeInsets.only(bottom: 16.0),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 80,
+                                        height: 120,
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(5.0),
+                                          image: DecorationImage(
+                                            image: movie.posterImage?.url !=
+                                                    null
+                                                ? Image.network(
+                                                        movie.posterImage!.url!)
+                                                    .image
+                                                : const AssetImage(
+                                                    'assets/images/placeholder.png'),
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        SizedBox(height: 8),
-                                        Text(
-                                          movie.name ?? 'Movie name',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyLarge
-                                              ?.copyWith(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.white,
-                                              ),
+                                      SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            SizedBox(height: 8),
+                                            Text(
+                                              movie.name ?? 'Movie name',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyLarge
+                                                  ?.copyWith(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                  ),
+                                            ),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              "Release date: ${movie.releaseDate ?? 'N/A'}",
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    color: Colors.white70,
+                                                  ),
+                                            ),
+                                            SizedBox(height: 16),
+                                            if (movie.tomatoRating != null)
+                                              Row(
+                                                children: [
+                                                  Image.network(
+                                                    movie.tomatoRating!
+                                                            .iconImage?.url ??
+                                                        '',
+                                                    width: 20.0,
+                                                    height: 20.0,
+                                                  ),
+                                                  SizedBox(
+                                                    width: 8,
+                                                  ),
+                                                  Text(
+                                                    "${movie.tomatoRating?.tomatometer ?? 'N/A'} / 100",
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .bodySmall
+                                                        ?.copyWith(
+                                                          color: Colors.white70,
+                                                        ),
+                                                  ),
+                                                ],
+                                              )
+                                          ],
                                         ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          "Release date: ${movie.releaseDate ?? 'N/A'}",
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                color: Colors.white70,
-                                              ),
-                                        ),
-                                        SizedBox(height: 16),
-                                        if (movie.tomatoRating != null)
-                                          Row(
-                                            children: [
-                                              Image.network(
-                                                movie.tomatoRating!.iconImage
-                                                        ?.url ??
-                                                    '',
-                                                width: 20.0,
-                                                height: 20.0,
-                                              ),
-                                              SizedBox(
-                                                width: 8,
-                                              ),
-                                              Text(
-                                                "${movie.tomatoRating?.tomatometer ?? 'N/A'} / 100",
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall
-                                                    ?.copyWith(
-                                                      color: Colors.white70,
-                                                    ),
-                                              ),
-                                            ],
-                                          )
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          )
+                                ),
+                              ) ??
+                              [
+                                Center(
+                                  child: Text(
+                                    "No filmography found!",
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: Colors.white70,
+                                        ),
+                                  ),
+                                )
+                              ])
                         ]
                       ],
                     ),
