@@ -19,8 +19,7 @@ jobs:
       
       - name: Build flutter web
         run: 
-          flutter pub get
-          flutter build web
+          flutter pub get && flutter build web
         env:
           API_BASE_URL: https://api.star-spotter.com
 
