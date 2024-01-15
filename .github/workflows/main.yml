@@ -33,4 +33,4 @@ jobs:
 
       - name: Deploy to AWS S3
         run: |
-          aws s3 sync ./build/web s3://star-spotter-prod --delete
+          aws s3 sync build/web s3://star-spotter-prod --delete
