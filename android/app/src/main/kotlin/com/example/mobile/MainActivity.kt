@@ -1,4 +1,4 @@
-package com.example.star-spotter
+package com.star_spotter.app
 
 import io.flutter.embedding.android.FlutterActivity
 
