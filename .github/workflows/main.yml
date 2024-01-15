@@ -10,6 +10,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.5'
+          channel: 'stable'
+      
+      - name: Build flutter web
+        run: 
+          flutter pub get
+          flutter build web
+        env:
+          API_BASE_URL: https://api.star-spotter.com
+
       - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -19,4 +33,4 @@ jobs:
 
       - name: Deploy to AWS S3
         run: |
-          aws s3 sync . s3://star-spotter-prod --delete
+          aws s3 sync ./build/web s3://star-spotter-prod --delete
