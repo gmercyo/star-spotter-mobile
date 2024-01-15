@@ -16,12 +16,14 @@ jobs:
         with:
           flutter-version: '3.16.5'
           channel: 'stable'
+
+      - name: Create .env file
+        run: |
+          echo "API_BASE_URL=https://api.star-spotter.com" > .env
       
       - name: Build flutter web
         run: 
           flutter pub get && flutter build web
-        env:
-          API_BASE_URL: https://api.star-spotter.com
 
       - name: Set up AWS CLI
         uses: aws-actions/configure-aws-credentials@v1
