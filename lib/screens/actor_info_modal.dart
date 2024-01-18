@@ -8,6 +8,10 @@ import 'package:star_spotter/utils/actor_info.dart';
 
 String baseUrl = dotenv.env['API_BASE_URL'] ?? '';
 
+String getProxyImageUrl(String imageUrl) {
+  return '$baseUrl/img_proxy?url=$imageUrl';
+}
+
 void showActorInfoModal(BuildContext context, Image image, String actorName) {
   showModalBottomSheet(
     context: context,
@@ -128,7 +132,9 @@ class _ActorInfoScreenState extends State<ActorInfoScreen> {
               decoration: BoxDecoration(
                 image: DecorationImage(
                   image: _actorInfo?.headShotImage?.url != null
-                      ? Image.network(_actorInfo!.headShotImage!.url!).image
+                      ? Image.network(
+                              getProxyImageUrl(_actorInfo!.headShotImage!.url!))
+                          .image
                       : widget.image.image,
                   fit: BoxFit.cover,
                 ),
@@ -237,7 +243,8 @@ class _ActorInfoScreenState extends State<ActorInfoScreen> {
                                             image: movie.posterImage?.url !=
                                                     null
                                                 ? Image.network(
-                                                        movie.posterImage!.url!)
+                                                        getProxyImageUrl(movie
+                                                            .posterImage!.url!))
                                                     .image
                                                 : const AssetImage(
                                                     'assets/images/placeholder.png'),
@@ -278,9 +285,11 @@ class _ActorInfoScreenState extends State<ActorInfoScreen> {
                                               Row(
                                                 children: [
                                                   Image.network(
-                                                    movie.tomatoRating!
-                                                            .iconImage?.url ??
-                                                        '',
+                                                    getProxyImageUrl(movie
+                                                            .tomatoRating!
+                                                            .iconImage
+                                                            ?.url ??
+                                                        ''),
                                                     width: 20.0,
                                                     height: 20.0,
                                                   ),
